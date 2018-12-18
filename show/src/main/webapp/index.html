@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue购物车</title>
+    <style type="text/css">
+        table{
+            text-align: center;
+        }
+        tr{
+            height: 40px;
+            line-height: 40px;
+        }
+        tr:hover{
+            background: #eeeeee;
+        }
+        td input{
+            background: transparent;
+            width: 40px;
+            height: 20px;
+            line-height: 20px;
+            padding: 0;
+            border:none;
+            outline:none;
+            border-top: 1px solid gray;
+            border-bottom: 1px solid gray;
+            text-align: center;
+        }
+        td button{
+            width: 20px;
+            height: 22px;
+            border: 1px solid gray;
+            border-left: none;
+            cursor: pointer;
+            outline:none;
+            margin-left: -4px;
+        }
+        #reduce{
+            border-right: none;
+            border-left:1px solid gray;
+            margin-right: -5px;
+        }
+        span{
+            color: red;
+            font-size: 22px;
+        }
+        a{
+            text-decoration: none;
+            column-rule: red;
+        }
+    </style>
+</head>
+<body>
+<div id="shop">
+    <table border="1" cellspacing="0" cellpadding="0" width="100%">
+        <caption style="font-size: 28px">Vue</caption>
+        <tr><th>序号</th><th>名称</th><th>单价</th><th>数量</th><th>小计</th><th>操作</th></tr>
+        <tr v-for="(obj,index) in products">
+            <td>{{obj.cid}}</td>
+            <td>{{obj.shopname}}</td>
+            <td>{{obj.shopprice}}</td>
+            <td>
+                <button type="button" v-on:click="updatesum(obj.shopsum-1,obj.cid)" id="reduce">-</button>
+                <input type="text" v-model="obj.shopsum" @blur="app1(this)">
+                <button type="button" v-on:click="updatesum(obj.shopsum+1,obj.cid)">+</button>
+            </td>
+            <!--计算后保留后两位小数-->
+            <td>{{(obj.shopsum*obj.shopprice).toFixed(2)}}</td>
+            <td><a href="#" v-on:click="remove(obj.cid)">删除</a>&#12288;<a href="#" v-on:click="edit(obj.cid,obj.shopname,obj.shopprice,obj.shopsum)">编辑</a></td>
+        </tr>
+        <tr>
+            <td colspan="6" align="right" style="padding: 0px 50px;">合计：<span>{{total | number}}</span></td>
+        </tr>
+    </table>
+    <fieldset>
+        <legend>添加/修改</legend>
+        <input type="text" hidden="hidden" id="cid">
+        <p>
+            <label for="shopname">名称：</label>
+            <input type="text" id="shopname" placeholder="名称"/>
+        </p>
+        <p>
+            <label for="shopprice">价格：</label>
+            <input type="text" id="shopprice" placeholder="价格">
+        </p>
+        <p>
+            <label for="shopsum">数量：</label>
+            <input type="text" id="shopsum" placeholder="数量">
+        </p>
+        <p>
+            <button type="button" v-on:click="insert">添加</button>
+            <button type="button" v-on:click="update">修改</button>
+        </p>
+    </fieldset>
+</div>
+<script src="./lib/jquery-1.11.3.js" type="text/javascript" charset="utf-8"></script>
+<script src="./lib/vue-v2.5.21.js" type="text/javascript" charset="utf-8"></script>
+<script type="text/javascript">
+    var shop=new Vue({
+        //范围
+        el:"#shop",
+        //数据
+        data:{products:[]},
+        //计算合计
+        computed: {
+            total: function() {
+                var sum = 0;
+                for(var i = 0; i < this.products.length; i++) {
+                    sum += (this.products[i].shopprice * this.products[i].shopsum);
+                }
+                return sum;
+            }
+        },
+        //过滤价格，保留后两位
+        filters:{
+            number:function(data){
+                return data.toFixed(2);
+            }
+        },
+        methods:{
+            //test
+            app1:function(o){
+                alert(o.valueOf());
+            },
+            //insert
+            insert:function(){
+                var shopdata={
+                    shopname:$("#shopname").val(),
+                    shopprice:$("#shopprice").val(),
+                    shopsum:$("#shopsum").val()
+                };
+                $.ajax({
+                    url:'/ShopApi/insertShop',
+                    type:"post",
+                    // dataType:'json',
+                    // contentType: "application/json; charset=UTF-8",
+                    data:shopdata,
+                    success:function (data) {
+                        alert("添加成功！");
+                        getAll();
+                        $(":input").val('');
+                    },
+                    error:function (xhr, textStatus, errorThrown,data) {
+                        console.log("错误，"+textStatus+","+errorThrown+data);
+                        alert("添加失败！");
+                        console.log(shopdata);
+                    }
+                });
+            },
+            //edit
+            edit:function(cid,shopname,shopprice,shopsum){
+                $("#cid").val(cid);
+                $("#shopname").val(shopname);
+                $("#shopprice").val(shopprice);
+                $("#shopsum").val(shopsum);
+            },
+            //update
+            update:function(){
+                $.ajax({
+                    url:'/ShopApi/updateShop',
+                    type:'post',
+                    data:{cid:$("#cid").val(),shopname:$("#shopname").val(),shopprice:$("#shopprice").val(),shopsum:$("#shopsum").val()},
+                    success:function (data) {
+                        alert("修改成功！");
+                        getAll();
+                        $(":input").val('');
+                    },
+                    error:function (xhr, textStatus, errorThrown,data) {
+                        console.log("错误，"+textStatus+","+errorThrown+data);
+                        alert("修改失败");
+                    }
+                });
+            },
+            //delete
+            remove:function(i){
+                if(confirm('您确定要删除吗？')){
+                    $.ajax({
+                        type: "post",
+                        url: '/ShopApi/deleteShop',
+                        data: {cid:i},
+                        // dataType:'json',
+                        // contentType: "application/json; charset=UTF-8",
+                        success: function (data) {
+                            alert("删除成功！");
+                            getAll();
+                         },
+                        error:function (xhr, textStatus, errorThrown,data) {
+                            console.log("错误，"+textStatus+","+errorThrown+data);
+                        }
+                    });
+                }
+            },
+            //updatesum
+            updatesum:function (sum,id) {
+                $.ajax({
+                   url:'/ShopApi/updateSum',
+                    type:'post',
+                    data:{shopsum:sum,cid:id},
+                    success:function (data) {
+                       getAll();
+                    },
+                    error:function (xhr, textStatus, errorThrown,data) {
+                        console.log("错误，"+textStatus+","+errorThrown+data);
+                    }
+                });
+            }
+        }
+    });
+    function getAll() {
+        $.ajax({
+            url:'/ShopApi/getAll',
+            type:'post',
+            contentType: "application/json; charset=UTF-8",
+            success:function (data) {
+                shop.products=data.data;
+            },error:function (xhr, textStatus, errorThrown,data) {
+                console.log("错误，"+textStatus+","+errorThrown+data);
+            }
+        })
+    }
+    getAll();
+</script>
+</body>
+</html>
